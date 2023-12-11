@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import os
 import base64
 import json
+import pandas as pd
+
 
 #load the environment variables
 load_dotenv()
@@ -44,8 +46,9 @@ def search_for_artist(token, artist_name):
         return None
     return json_results[0]
 
-def get_songs_by_artist(token, artist_id):
+def get_songs_by_artist_US(token, artist_id):
     url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
+    #url = "https://api.spotify.com/v1/artists/39EHxSQAIaWusRqSI9xoyF"
     headers = get_auth_header(token=token)
     result = get(url, headers=headers)
     json_results = json.loads(result.content)["tracks"]
@@ -53,10 +56,55 @@ def get_songs_by_artist(token, artist_id):
         print("No tracks found")
         return None
     return json_results
-token = get_token()
-print(token)
 
-result = search_for_artist(token, "ACDC")
-artist_id = result["id"]
-for idx, song in enumerate(get_songs_by_artist(token, artist_id)):
-    print(f"{idx+1}: {song['name']}")
+#spark = SparkSession.builder.appName('Spotify EDA').config("spark.some.config.option", "some-value").getOrCreate()
+#spark_context = spark.sparkContext
+#spotify_artists_df = spark.read.csv('top10k-spotify-artist-metadata.csv')
+#print(spotify_artists_df.show())
+#exit()
+#get to 10 songs in each region by top 10k artists
+spotify_artists_df = pd.read_csv('top10k-spotify-artist-metadata.csv')
+print(spotify_artists_df.head())
+artist_data = {}
+artist_data['Name'] = []
+artist_data['ID'] = []
+artist_data['Gender'] = []
+artist_data['Age'] = []
+artist_data['Country'] = []
+artist_data['Genres'] = []
+artist_data['Popularity'] = []
+artist_data['Followers'] = []
+artist_data['URI'] = []
+
+token = get_token()
+for i, artist in enumerate(spotify_artists_df['artist']):
+    try:
+        artist_data['Name'].append(artist)
+        artist_gender = spotify_artists_df['gender'][i]
+        artist_data['Gender'].append(artist_gender)
+        artist_age = spotify_artists_df['age'][i]
+        artist_data['Age'].append(artist_age)
+        artist_country = spotify_artists_df['country'][i]
+        artist_data['Country'].append(artist_country)
+        artist_city_1 = spotify_artists_df['city_1'][i]
+        artist_city_2 = spotify_artists_df['city_2'][i]
+        artist_city_3 = spotify_artists_df['city_3'][i]
+        #get the artist's ID
+        result = search_for_artist(token, artist)
+        artist_id = result['id']
+        artist_data['ID'].append(artist_id)
+        artist_genres = result['genres']
+        artist_data['Genres'].append(artist_genres)
+        artist_popularity = result['popularity']
+        artist_data['Popularity'].append(artist_popularity)
+        artist_followers = result['followers']['total']
+        artist_data['Followers'].append(artist_followers)
+        artist_uri = result['uri']
+        artist_data['URI'].append(artist_uri)
+        #adding all the artist data to artist dataframe
+        #for idx, song in enumerate(get_songs_by_artist_US(token, artist_id)):
+        #    print(f"{idx+1}: {song['name']}")
+        #    print(song)
+    except Exception as e:
+        print('WARNING: ', e)
+print(artist_data)
